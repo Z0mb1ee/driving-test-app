@@ -1,0 +1,806 @@
+#:kivy 2.3.0
+
+<WindowManager>:
+    MenuScreen:
+    StatsScreen:
+    AddQuestionScreen:
+    ViewQuestionsScreen:
+    QuestionPreviewScreen:
+    EditQuestionScreen:
+    TestSettingsScreen:
+    ActiveTestScreen:
+    TestSummaryScreen:
+
+<MenuScreen>:
+    name: 'menu'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 50
+        spacing: 20
+        Label:
+            text: 'Testy Vedenia Vozidiel'
+            font_size: 32
+            size_hint_y: None
+            height: 50
+            halign: 'center'
+        Button:
+            text: 'Začať Test'
+            font_size: 18
+            on_press: root.go_to_test_settings()
+        Button:
+            text: 'Štatistiky a Úspešnosť'
+            font_size: 18
+            background_color: 0.1, 0.5, 0.8, 1
+            on_press: root.go_to_stats()
+        Button:
+            text: 'Pridať Otázku'
+            font_size: 18
+            on_press: root.manager.current = 'add_question'
+        Button:
+            text: 'Prehľad a Vyhľadávanie Otázok'
+            font_size: 18
+            on_press: root.manager.current = 'view_questions'
+
+<StatsScreen>:
+    name: 'stats'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 20
+        spacing: 15
+        Label:
+            text: 'Štatistiky a Prehľad Úspešnosti'
+            font_size: 24
+            bold: True
+            size_hint_y: None
+            height: 40
+            halign: 'center'
+        Label:
+            id: stats_summary_label
+            text: 'Načítavam štatistiky...'
+            font_size: 16
+            size_hint_y: None
+            height: 60
+            halign: 'center'
+        Label:
+            text: 'Úspešnosť podľa kategórií:'
+            font_size: 18
+            bold: True
+            size_hint_y: None
+            height: 30
+            halign: 'left'
+        ScrollView:
+            BoxLayout:
+                id: stats_categories_layout
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 5
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 10
+            Button:
+                text: 'Vymazať štatistiky'
+                background_color: 0.8, 0.2, 0.2, 1
+                on_press: root.clear_stats()
+            Button:
+                text: 'Späť do Menu'
+                background_color: 0.2, 0.5, 0.9, 1
+                on_press: root.manager.current = 'menu'
+
+<AddQuestionScreen>:
+    name: 'add_question'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 20
+        spacing: 10
+        Label:
+            text: 'Pridať Novú Otázku'
+            font_size: 22
+            size_hint_y: None
+            height: 40
+        BoxLayout:
+            size_hint_y: None
+            height: 40
+            spacing: 10
+            Label:
+                text: 'Kategória:'
+            Spinner:
+                id: cat_spinner
+                text: 'Pravidlá cestnej premávky'
+                values: ['Pravidlá cestnej premávky', 'Uplatňovanie pravidiel prednosti v jazde a rýchlostné obmedzenia', 'Dopravné značky a dopravné zariadenia', 'Dopravné situácie na križovatkách', 'Všeobecné pravidlá správania sa v prípade dopravnej nehody', 'Teória vedenia vozidla', 'Predpisy týkajúce sa dokladov požadovaných v prípade používania vozidla a organizácia času v doprave', 'Podmienky prevádzky vozidiel v premávke na pozemnych komunikáciách', 'Zásady bezpečnej jazdy', 'Konštrukcia vozidiel a ich údržba']
+                on_text: root.on_category_changed(self.text)
+        
+        Label:
+            id: points_label
+            text: 'Body: 3 (automaticky)'
+            font_size: 16
+            size_hint_y: None
+            height: 30
+            color: (1, 0.8, 0, 1)
+
+        TextInput:
+            id: q_text
+            hint_text: 'Zadajte text otázky...'
+            multiline: False
+            size_hint_y: None
+            height: 40
+        
+        BoxLayout:
+            size_hint_y: None
+            height: 40
+            spacing: 10
+            Button:
+                text: 'Vložiť obrázok zo schránky (Ctrl+V)'
+                on_press: root.paste_image()
+            Label:
+                id: img_status_label
+                text: 'Žiadny obrázok nie je vložený'
+                color: 0.7, 0.7, 0.7, 1
+
+        BoxLayout:
+            id: preview_container
+            size_hint_y: 1
+
+        TextInput:
+            id: opt_a
+            hint_text: 'Možnosť A'
+            multiline: False
+            size_hint_y: None
+            height: 40
+        TextInput:
+            id: opt_b
+            hint_text: 'Možnosť B'
+            multiline: False
+            size_hint_y: None
+            height: 40
+        TextInput:
+            id: opt_c
+            hint_text: 'Možnosť C'
+            multiline: False
+            size_hint_y: None
+            height: 40
+        BoxLayout:
+            size_hint_y: None
+            height: 40
+            spacing: 10
+            Label:
+                text: 'Správna:'
+            Spinner:
+                id: correct_spinner
+                text: 'A'
+                values: ['A', 'B', 'C']
+            Label:
+                text: 'Status:'
+            Spinner:
+                id: status_spinner
+                text: 'Nepoznám'
+                values: ['Nepoznám', 'Neviem', 'Neistý', 'Viem']
+        Button:
+            text: 'Uložiť Otázku'
+            size_hint_y: None
+            height: 50
+            on_press: root.save_question(cat_spinner, q_text, opt_a, opt_b, opt_c, correct_spinner, status_spinner)
+        Button:
+            text: 'Späť do Menu'
+            size_hint_y: None
+            height: 50
+            on_press: root.manager.current = 'menu'
+
+<ViewQuestionsScreen>:
+    name: 'view_questions'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 20
+        spacing: 10
+        Label:
+            text: 'Databáza Otázok'
+            font_size: 24
+            size_hint_y: None
+            height: 40
+            
+        Label:
+            id: count_label
+            text: 'Načítavam počty...'
+            font_size: 14
+            size_hint_y: None
+            height: 25
+            color: (0.9, 0.8, 0.2, 1)
+
+        TextInput:
+            id: search_box
+            hint_text: 'Hľadať v otázkach...'
+            size_hint_y: None
+            height: 40
+            multiline: False
+            on_text: root.load_questions()
+        
+        BoxLayout:
+            size_hint_y: None
+            height: 40
+            spacing: 5
+            Spinner:
+                id: cat_filter
+                text: 'Všetky kategórie'
+                values: ['Všetky kategórie', 'Pravidlá cestnej premávky', 'Uplatňovanie pravidiel prednosti v jazde a rýchlostné obmedzenia', 'Dopravné značky a dopravné zariadenia', 'Dopravné situácie na križovatkách', 'Všeobecné pravidlá správania sa v prípade dopravnej nehody', 'Teória vedenia vozidla', 'Predpisy týkajúce sa dokladov požadovaných v prípade používania vozidla a organizácia času v doprave', 'Podmienky prevádzky vozidiel v premávke na pozemnych komunikáciách', 'Zásady bezpečnej jazdy', 'Konštrukcia vozidiel a ich údržba']
+                on_text: root.load_questions()
+            Spinner:
+                id: status_filter
+                text: 'Všetky statusy'
+                values: ['Všetky statusy', '❓ Nepoznám', '🔴 Neviem', '🟡 Neistý', '🟢 Viem']
+                on_text: root.load_questions()
+            Spinner:
+                id: sort_filter
+                text: 'Zoradiť podľa obtiažnosti'
+                values: ['Zoradiť podľa obtiažnosti', 'Najťažšie prvé', 'Najľahšie prvé']
+                on_text: root.load_questions()
+            Button:
+                text: 'Hľadať duplikáty'
+                background_color: (0.9, 0.6, 0.1, 1)
+                on_press: root.check_duplicates()
+
+        ScrollView:
+            BoxLayout:
+                id: questions_list_layout
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 5
+        Button:
+            text: 'Späť do Menu'
+            size_hint_y: None
+            height: 50
+            on_press: root.manager.current = 'menu'
+
+<QuestionPreviewScreen>:
+    name: 'question_preview'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 20
+        spacing: 10
+        Label:
+            id: prev_header
+            text: 'Náhľad otázky'
+            font_size: 18
+            size_hint_y: None
+            height: 30
+            halign: 'left'
+        Label:
+            id: prev_text
+            text: 'Text...'
+            font_size: 16
+            size_hint_y: None
+            height: 45
+            text_size: self.width, None
+            halign: 'left'
+        
+        BoxLayout:
+            id: prev_image_container
+            size_hint_y: 1
+
+        Button:
+            id: prev_opt_a
+            text: 'A)'
+            size_hint_y: None
+            height: 45
+            text_size: self.width - 20, None
+            halign: 'left'
+        Button:
+            id: prev_opt_b
+            text: 'B)'
+            size_hint_y: None
+            height: 45
+            text_size: self.width - 20, None
+            halign: 'left'
+        Button:
+            id: prev_opt_c
+            text: 'C)'
+            size_hint_y: None
+            height: 45
+            text_size: self.width - 20, None
+            halign: 'left'
+        
+        BoxLayout:
+            size_hint_y: None
+            height: 45
+            spacing: 10
+            Button:
+                text: 'Predchádzajúca'
+                on_press: root.prev_question()
+            Button:
+                text: 'Ďalšia'
+                on_press: root.next_question()
+
+        BoxLayout:
+            size_hint_y: None
+            height: 45
+            spacing: 10
+            Button:
+                text: 'Upraviť'
+                background_color: 0.2, 0.5, 0.9, 1
+                on_press: root.go_to_edit()
+            Button:
+                text: 'Resetovať obtiažność'
+                background_color: 0.9, 0.6, 0.1, 1
+                on_press: root.reset_this_question()
+            Button:
+                text: 'Zmazať otázku'
+                background_color: 0.8, 0.2, 0.2, 1
+                on_press: root.delete_this_question()
+        Button:
+            text: 'Späť do Prehľadu'
+            size_hint_y: None
+            height: 45
+            on_press: root.manager.current = 'view_questions'
+
+<EditQuestionScreen>:
+    name: 'edit_question'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 15
+        spacing: 8
+        Label:
+            text: 'Upraviť Otázku'
+            font_size: 20
+            size_hint_y: None
+            height: 30
+        
+        Label:
+            id: edit_difficulty_label
+            text: 'Automatická obtiažnosť: 1 / 5'
+            font_size: 14
+            size_hint_y: None
+            height: 25
+            color: (1, 0.8, 0, 1)
+
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            spacing: 10
+            Label:
+                text: 'Kategória:'
+                size_hint_x: 0.3
+            Spinner:
+                id: edit_cat_spinner
+                values: ['Pravidlá cestnej premávky', 'Uplatňovanie pravidiel prednosti v jazde a rýchlostné obmedzenia', 'Dopravné značky a dopravné zariadenia', 'Dopravné situácie na križovatkách', 'Všeobecné pravidlá správania sa v prípade dopravnej nehody', 'Teória vedenia vozidla', 'Predpisy týkajúce sa dokladov požadovaných v prípade používania vozidla a organizácia času v doprave', 'Podmienky prevádzky vozidiel v premávke na pozemnych komunikáciách', 'Zásady bezpečnej jazdy', 'Konštrukcia vozidiel a ich údržba']
+                on_text: root.on_category_changed(self.text)
+
+        Label:
+            id: edit_points_label
+            text: 'Body: 3 (automaticky)'
+            font_size: 14
+            size_hint_y: None
+            height: 25
+            color: (1, 0.8, 0, 1)
+
+        TextInput:
+            id: edit_q_text
+            multiline: False
+            size_hint_y: None
+            height: 35
+        
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            spacing: 10
+            Button:
+                text: 'Zmeniť obrázok (Ctrl+V)'
+                on_press: root.paste_image()
+            Label:
+                id: edit_img_status
+                text: 'Stav obrázka'
+                color: 0.7, 0.7, 0.7, 1
+
+        BoxLayout:
+            id: edit_preview_container
+            size_hint_y: 1
+
+        TextInput:
+            id: edit_opt_a
+            multiline: False
+            size_hint_y: None
+            height: 35
+        TextInput:
+            id: edit_opt_b
+            multiline: False
+            size_hint_y: None
+            height: 35
+        TextInput:
+            id: edit_opt_c
+            multiline: False
+            size_hint_y: None
+            height: 35
+        
+        BoxLayout:
+            size_hint_y: None
+            height: 35
+            spacing: 10
+            Label:
+                text: 'Správna:'
+                size_hint_x: 0.2
+            Spinner:
+                id: edit_correct_spinner
+                values: ['A', 'B', 'C']
+            Label:
+                text: 'Status:'
+                size_hint_x: 0.2
+            Spinner:
+                id: edit_status_spinner
+                values: ['Nepoznám', 'Neviem', 'Neistý', 'Viem']
+
+        BoxLayout:
+            size_hint_y: None
+            height: 45
+            spacing: 10
+            Button:
+                text: '⬅ Predchádzajúca'
+                background_color: 0.3, 0.3, 0.3, 1
+                on_press: root.prev_question()
+            Button:
+                text: '💾 Uložiť zmeny'
+                background_color: 0.2, 0.5, 0.9, 1
+                on_press: root.save_changes()
+            Button:
+                text: '💾 Uložiť & Ďalšia ➡'
+                background_color: 0.1, 0.6, 0.2, 1
+                on_press: root.save_and_next()
+            Button:
+                text: 'Ďalšia ➡'
+                background_color: 0.3, 0.3, 0.3, 1
+                on_press: root.next_question()
+
+        Button:
+            text: 'Hotovo / Späť do prehľadu'
+            size_hint_y: None
+            height: 45
+            on_press: root.manager.current = 'view_questions'
+
+<TestSettingsScreen>:
+    name: 'test_settings'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 40
+        spacing: 20
+        Label:
+            text: 'Nastavenia Testu'
+            font_size: 26
+            size_hint_y: None
+            height: 40
+            halign: 'center'
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 15
+            Label:
+                text: 'Režim testu:'
+                font_size: 18
+            Spinner:
+                id: mode_spinner
+                text: 'Cielený (Smart)'
+                values: ['Cielený (Smart)', 'Prioritný (Nepoznané prvé)', 'Náhodný (Random)']
+                font_size: 16
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 15
+            Label:
+                text: 'Kategória:'
+                font_size: 18
+            Spinner:
+                id: category_spinner
+                text: 'Všetky kategórie'
+                values: ['Všetky kategórie', 'Problematické kategórie', 'Pravidlá cestnej premávky', 'Uplatňovanie pravidiel prednosti v jazde a rýchlostné obmedzenia', 'Dopravné značky a dopravné zariadenia', 'Dopravné situácie na križovatkách', 'Všeobecné pravidlá správania sa v prípade dopravnej nehody', 'Teória vedenia vozidla', 'Predpisy týkajúce sa dokladov požadovaných v prípade používania vozidla a organizácia času v doprave', 'Podmienky prevádzky vozidiel v premávke na pozemnych komunikáciách', 'Zásady bezpečnej jazdy', 'Konštrukcia vozidiel a ich údržba']
+                font_size: 16
+        BoxLayout:
+            size_hint_y: None
+            height: 20
+        Button:
+            text: 'Vygenerovať a Spustiť Test'
+            font_size: 18
+            size_hint_y: None
+            height: 55
+            background_color: 0.1, 0.6, 0.2, 1
+            on_press: root.start_configured_test(mode_spinner, category_spinner)
+        Button:
+            text: 'Späť do Menu'
+            font_size: 16
+            size_hint_y: None
+            height: 45
+            on_press: root.manager.current = 'menu'
+
+<ActiveTestScreen>:
+    name: 'active_test'
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 5
+        BoxLayout:
+            size_hint_y: None
+            height: 60
+            spacing: 20
+            Label:
+                id: timer_label
+                text: 'Zostávajúci čas: 30:00'
+                font_size: 16
+                size_hint_x: None
+                width: 200
+            ScrollView:
+                do_scroll_y: False
+                BoxLayout:
+                    id: top_questions_grid
+                    orientation: 'horizontal'
+                    size_hint_x: None
+                    width: self.minimum_width
+                    spacing: 5
+        BoxLayout:
+            spacing: 15
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: 0.35
+                spacing: 2
+                Button:
+                    id: cat_1
+                    text: 'Pravidlá cestnej premávky'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_2
+                    text: 'Prednosť v jazde'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_3
+                    text: 'Dopravné značky'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_4
+                    text: 'Križovatky'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_5
+                    text: 'Dopravná nehoda'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_6
+                    text: 'Teória vedenia'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_7
+                    text: 'Doklady a čas'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_8
+                    text: 'Podmienky prevádzky'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_9
+                    text: 'Zásady bezpečnej jazdy'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+                Button:
+                    id: cat_10
+                    text: 'Konštrukcia vozidiel'
+                    text_size: self.width - 10, None
+                    halign: 'left'
+                    font_size: 10
+            BoxLayout:
+                orientation: 'vertical'
+                spacing: 10
+                Label:
+                    id: q_header_label
+                    text: 'Otázka č. 1 za 1 b'
+                    font_size: 18
+                    size_hint_y: None
+                    height: 30
+                    halign: 'left'
+                Label:
+                    id: q_text_label
+                    text: 'Text otázky...'
+                    font_size: 15
+                    size_hint_y: None
+                    height: 50
+                    text_size: self.width, None
+                    halign: 'left'
+                
+                BoxLayout:
+                    id: test_image_container
+                    size_hint_y: 1
+
+                Button:
+                    id: opt_a_btn
+                    text: 'A) Možnost A'
+                    size_hint_y: None
+                    height: 55
+                    text_size: self.width - 20, None
+                    halign: 'left'
+                    on_press: root.select_answer(0)
+                Button:
+                    id: opt_b_btn
+                    text: 'B) Možnost B'
+                    size_hint_y: None
+                    height: 55
+                    text_size: self.width - 20, None
+                    halign: 'left'
+                    on_press: root.select_answer(1)
+                Button:
+                    id: opt_c_btn
+                    text: 'C) Možnost C'
+                    size_hint_y: None
+                    height: 55
+                    text_size: self.width - 20, None
+                    halign: 'left'
+                    on_press: root.select_answer(2)
+                BoxLayout:
+                    size_hint_y: None
+                    height: 50
+                    spacing: 10
+                    Button:
+                        text: 'Predchádzajúca'
+                        on_press: root.prev_question()
+                    Button:
+                        text: 'Ďalšia'
+                        on_press: root.next_question()
+                    Button:
+                        text: 'Ukončenie testu'
+                        background_color: 0.1, 0.6, 0.2, 1
+                        on_press: root.finish_test()
+
+<TestSummaryScreen>:
+    name: 'test_summary'
+    ScrollView:
+        BoxLayout:
+            orientation: 'vertical'
+            padding: 20
+            spacing: 15
+            size_hint_y: None
+            height: self.minimum_height
+            
+            BoxLayout:
+                size_hint_y: None
+                height: 40
+                spacing: 20
+                Label:
+                    id: summary_status_label
+                    text: 'Výsledok testu'
+                    font_size: 18
+                    bold: True
+                Label:
+                    id: summary_score_label
+                    text: 'Skóre'
+                    font_size: 16
+                Label:
+                    id: summary_time_label
+                    text: 'Čas: 00:00'
+                    font_size: 16
+
+            ScrollView:
+                size_hint_y: None
+                height: 45
+                do_scroll_y: False
+                BoxLayout:
+                    id: summary_grid
+                    orientation: 'horizontal'
+                    size_hint_x: None
+                    width: self.minimum_width
+                    spacing: 4
+
+            BoxLayout:
+                orientation: 'vertical'
+                spacing: 8
+                size_hint_y: None
+                height: 500
+                Label:
+                    id: det_header
+                    text: 'Otázka č. 1'
+                    font_size: 16
+                    size_hint_y: None
+                    height: 25
+                    halign: 'left'
+                Label:
+                    id: det_text
+                    text: 'Text...'
+                    font_size: 15
+                    size_hint_y: None
+                    height: 40
+                    text_size: self.width, None
+                    halign: 'left'
+                
+                BoxLayout:
+                    id: det_image_container
+                    size_hint_y: 1
+
+                Button:
+                    id: det_opt_a
+                    text: 'A)'
+                    size_hint_y: None
+                    height: 40
+                    text_size: self.width - 20, None
+                    halign: 'left'
+                Button:
+                    id: det_opt_b
+                    text: 'B)'
+                    size_hint_y: None
+                    height: 40
+                    text_size: self.width - 20, None
+                    halign: 'left'
+                Button:
+                    id: det_opt_c
+                    text: 'C)'
+                    size_hint_y: None
+                    height: 40
+                    text_size: self.width - 20, None
+                    halign: 'left'
+
+            BoxLayout:
+                size_hint_y: None
+                height: 45
+                spacing: 10
+                Button:
+                    text: 'Predchádzajúca otázka'
+                    on_press: root.prev_detail()
+                Button:
+                    text: 'Ďalšia otázka'
+                    on_press: root.next_detail()
+
+            Label:
+                text: 'Prehľad kategórií'
+                font_size: 20
+                bold: True
+                size_hint_y: None
+                height: 35
+                halign: 'left'
+
+            BoxLayout:
+                size_hint_y: None
+                height: 30
+                spacing: 10
+                Label:
+                    text: 'Kategória'
+                    size_hint_x: 0.5
+                    bold: True
+                    font_size: 13
+                    halign: 'left'
+                Label:
+                    text: 'Správne'
+                    size_hint_x: 0.15
+                    bold: True
+                    font_size: 13
+                Label:
+                    text: 'Body'
+                    size_hint_x: 0.15
+                    bold: True
+                    font_size: 13
+                Label:
+                    text: 'Úspešnosť'
+                    size_hint_x: 0.2
+                    bold: True
+                    font_size: 13
+
+            BoxLayout:
+                id: categories_table_layout
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 5
+
+            Button:
+                text: 'Späť do Hlavného Menu'
+                size_hint_y: None
+                height: 50
+                background_color: 0.2, 0.5, 0.9, 1
+                on_press: root.manager.current = 'menu'
