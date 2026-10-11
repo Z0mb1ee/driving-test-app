@@ -1,9 +1,38 @@
 import sqlite3
 import random
 from datetime import datetime
+import sys
+import os
+import shutil
 
 def get_connection():
-    return sqlite3.connect('questions.db')
+    if getattr(sys, 'frozen', False):
+        # Desktop verzia (PyInstaller)
+        base_path = os.path.dirname(sys.executable)
+        target_db = os.path.join(base_path, 'questions.db')
+        if not os.path.exists(target_db):
+            source_db = os.path.join(sys._MEIPASS, 'questions.db')
+            if os.path.exists(source_db):
+                shutil.copy(source_db, target_db)
+    else:
+        # Vývojový režim / Android
+        try:
+            from kivy.app import App
+            user_data = App.get_running_app().user_data_dir
+            if not os.path.exists(user_data):
+                os.makedirs(user_data)
+            target_db = os.path.join(user_data, 'questions.db')
+
+            if not os.path.exists(target_db):
+                from kivy.resources import resource_find
+                source_db = resource_find('questions.db')
+                if source_db:
+                    shutil.copy(source_db, target_db)
+        except Exception:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            target_db = os.path.join(base_path, 'questions.db')
+
+    return sqlite3.connect(target_db)
 
 def init_db():
     conn = get_connection()
@@ -20,7 +49,7 @@ def init_db():
             option_c TEXT NOT NULL,
             correct_answer INTEGER NOT NULL, 
             points INTEGER NOT NULL,         
-            learning_status INTEGER DEFAULT 0, -- 0: Nepoznám (predvolené)
+            learning_status INTEGER DEFAULT 0,
             difficulty INTEGER DEFAULT 1,      
             streak INTEGER DEFAULT 0,
             total_attempts INTEGER DEFAULT 0,
@@ -123,13 +152,28 @@ def get_question_counts():
     conn.close()
     return total, cat_counts
 
-def get_question_ids(category=None):
+def get_question_ids(category=None, search_query=None, status_filter=None, sort_by=None):
     conn = get_connection()
     cursor = conn.cursor()
+    query = "SELECT id FROM questions WHERE 1=1"
+    params = []
     if category and category != "Všetky kategórie":
-        cursor.execute("SELECT id FROM questions WHERE category = ? ORDER BY id ASC", (category,))
+        query += " AND category = ?"
+        params.append(category)
+    if search_query:
+        query += " AND question_text LIKE ?"
+        params.append(f"%{search_query}%")
+    if status_filter is not None:
+        query += " AND learning_status = ?"
+        params.append(status_filter)
+    if sort_by == "Najťažšie prvé":
+        query += " ORDER BY difficulty DESC, id DESC"
+    elif sort_by == "Najľahšie prvé":
+        query += " ORDER BY difficulty ASC, id ASC"
     else:
-        cursor.execute("SELECT id FROM questions ORDER BY id ASC")
+        query += " ORDER BY id DESC"
+
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
     return [r[0] for r in rows]
@@ -137,36 +181,27 @@ def get_question_ids(category=None):
 def find_duplicate_questions():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, category, question_text, option_a, option_b, option_c, correct_answer FROM questions")
+    cursor.execute("SELECT id, category, question_text, option_a, option_b, option_c, correct_answer FROM questions ORDER BY id")
     questions = cursor.fetchall()
     conn.close()
     
     duplicates = []
-    seen = set()
-    
-    for i in range(len(questions)):
-        for j in range(i + 1, len(questions)):
-            id1, cat1, text1, a1, b1, c1, corr1 = questions[i]
-            id2, cat2, text2, a2, b2, c2, corr2 = questions[j]
-            
-            t1_clean = text1.strip().lower()
-            t2_clean = text2.strip().lower()
-            
-            opts1 = [a1, b1, c1]
-            opts2 = [a2, b2, c2]
-            
-            correct_text1 = opts1[corr1].strip().lower() if 0 <= corr1 < 3 else ""
-            correct_text2 = opts2[corr2].strip().lower() if 0 <= corr2 < 3 else ""
-            
-            if t1_clean == t2_clean and correct_text1 == correct_text2:
-                pair = tuple(sorted([id1, id2]))
-                if pair not in seen:
-                    seen.add(pair)
-                    duplicates.append((id1, cat1, text1, id2, cat2, text2))
-                    
+    grouped_questions = {}
+
+    for question in questions:
+        q_id, category, text, option_a, option_b, option_c, correct_answer = question
+        options = (option_a, option_b, option_c)
+        correct_text = options[correct_answer].strip().lower() if 0 <= correct_answer < 3 else ""
+        key = (text.strip().lower(), correct_text)
+        matching_questions = grouped_questions.setdefault(key, [])
+        for previous in matching_questions:
+            duplicates.append((previous[0], previous[1], previous[2], q_id, category, text))
+        matching_questions.append(question)
+
+    duplicates.sort(key=lambda duplicate: (duplicate[0], duplicate[3]))
     return duplicates
 
-def get_questions(category=None, search_query=None, status_filter=None, sort_by=None):
+def get_questions(category=None, search_query=None, status_filter=None, sort_by=None, limit=None, offset=0):
     conn = get_connection()
     cursor = conn.cursor()
     query = "SELECT id, category, question_text, points, learning_status, difficulty FROM questions WHERE 1=1"
@@ -190,6 +225,10 @@ def get_questions(category=None, search_query=None, status_filter=None, sort_by=
         query += " ORDER BY difficulty ASC, id ASC"
     else:
         query += " ORDER BY id DESC"
+
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params.extend((limit, offset))
         
     cursor.execute(query, params)
     rows = cursor.fetchall()
@@ -319,7 +358,7 @@ def generate_test_questions(mode="Cielený (Smart)", category="Všetky kategóri
         ("Predpisy týkajúce sa dokladov požadovaných v prípade používania vozidla a organizácia času v doprave", 2),
         ("Podmienky prevádzky vozidiel v premávke na pozemnych komunikáciách", 2),
         ("Zásady bezpečnej jazdy", 8),
-        ("Konštrukcia vozidiel a ich údržba", 1)
+        ("Konštrukcia vozidiel a ich údržba", 2)  # Opravené z 1 na 2 (spolu presne 40 otázok)
     ]
     
     final_test_questions = []

@@ -1,4 +1,13 @@
 #:kivy 2.3.0
+#:import dp kivy.metrics.dp
+#:import sp kivy.metrics.sp
+
+<FilterSpinnerOption@SpinnerOption>:
+    size_hint_y: None
+    height: max(dp(48), self.texture_size[1] + dp(18))
+    text_size: self.width - dp(20), None
+    halign: 'center'
+    valign: 'middle'
 
 <WindowManager>:
     MenuScreen:
@@ -15,30 +24,55 @@
     name: 'menu'
     BoxLayout:
         orientation: 'vertical'
-        padding: 50
-        spacing: 20
+        padding: dp(24)
+        spacing: dp(12)
         Label:
             text: 'Testy Vedenia Vozidiel'
-            font_size: 32
+            font_size: sp(30)
             size_hint_y: None
-            height: 50
+            height: dp(52)
             halign: 'center'
+        BoxLayout:
+            size_hint_y: None
+            height: dp(48)
+            spacing: dp(10)
+            Label:
+                text: 'Orientácia'
+                size_hint_x: 0.38
+                font_size: sp(16)
+            Spinner:
+                text: app.orientation_mode
+                values: ['Automaticky', 'Na výšku', 'Na šírku']
+                font_size: sp(16)
+                on_text: app.set_orientation(self.text)
         Button:
             text: 'Začať Test'
-            font_size: 18
+            font_size: sp(18)
+            text_size: self.width - dp(24), self.height - dp(12)
+            halign: 'center'
+            valign: 'middle'
             on_press: root.go_to_test_settings()
         Button:
             text: 'Štatistiky a Úspešnosť'
-            font_size: 18
+            font_size: sp(18)
+            text_size: self.width - dp(24), self.height - dp(12)
+            halign: 'center'
+            valign: 'middle'
             background_color: 0.1, 0.5, 0.8, 1
             on_press: root.go_to_stats()
         Button:
             text: 'Pridať Otázku'
-            font_size: 18
+            font_size: sp(18)
+            text_size: self.width - dp(24), self.height - dp(12)
+            halign: 'center'
+            valign: 'middle'
             on_press: root.manager.current = 'add_question'
         Button:
-            text: 'Prehľad a Vyhľadávanie Otázok'
-            font_size: 18
+            text: 'Prehľad a databáza otázok'
+            font_size: sp(18)
+            text_size: self.width - dp(24), self.height - dp(12)
+            halign: 'center'
+            valign: 'middle'
             on_press: root.manager.current = 'view_questions'
 
 <StatsScreen>:
@@ -191,146 +225,199 @@
     name: 'view_questions'
     BoxLayout:
         orientation: 'vertical'
-        padding: 20
-        spacing: 10
+        padding: dp(12)
+        spacing: dp(8)
         Label:
             text: 'Databáza Otázok'
-            font_size: 24
+            font_size: sp(23)
             size_hint_y: None
-            height: 40
+            height: dp(38)
             
         Label:
             id: count_label
             text: 'Načítavam počty...'
-            font_size: 14
+            font_size: sp(14)
             size_hint_y: None
-            height: 25
+            height: dp(28)
             color: (0.9, 0.8, 0.2, 1)
 
         TextInput:
             id: search_box
             hint_text: 'Hľadať v otázkach...'
             size_hint_y: None
-            height: 40
+            height: dp(46)
+            font_size: sp(16)
             multiline: False
-            on_text: root.load_questions()
+            on_text: root.schedule_search()
         
-        BoxLayout:
+        GridLayout:
+            cols: max(1, int((self.width + dp(6)) / dp(186)))
             size_hint_y: None
-            height: 40
-            spacing: 5
+            height: self.minimum_height
+            row_default_height: dp(76)
+            row_force_default: True
+            spacing: dp(6)
             Spinner:
                 id: cat_filter
                 text: 'Všetky kategórie'
                 values: ['Všetky kategórie', 'Pravidlá cestnej premávky', 'Uplatňovanie pravidiel prednosti v jazde a rýchlostné obmedzenia', 'Dopravné značky a dopravné zariadenia', 'Dopravné situácie na križovatkách', 'Všeobecné pravidlá správania sa v prípade dopravnej nehody', 'Teória vedenia vozidla', 'Predpisy týkajúce sa dokladov požadovaných v prípade používania vozidla a organizácia času v doprave', 'Podmienky prevádzky vozidiel v premávke na pozemnych komunikáciách', 'Zásady bezpečnej jazdy', 'Konštrukcia vozidiel a ich údržba']
+                option_cls: 'FilterSpinnerOption'
+                font_size: sp(14)
+                text_size: self.width - dp(24), self.height - dp(10)
+                halign: 'center'
+                valign: 'middle'
                 on_text: root.load_questions()
             Spinner:
                 id: status_filter
                 text: 'Všetky statusy'
                 values: ['Všetky statusy', '❓ Nepoznám', '🔴 Neviem', '🟡 Neistý', '🟢 Viem']
+                option_cls: 'FilterSpinnerOption'
+                font_size: sp(14)
+                text_size: self.width - dp(24), self.height - dp(10)
+                halign: 'center'
+                valign: 'middle'
                 on_text: root.load_questions()
             Spinner:
                 id: sort_filter
                 text: 'Zoradiť podľa obtiažnosti'
                 values: ['Zoradiť podľa obtiažnosti', 'Najťažšie prvé', 'Najľahšie prvé']
+                option_cls: 'FilterSpinnerOption'
+                font_size: sp(14)
+                text_size: self.width - dp(24), self.height - dp(10)
+                halign: 'center'
+                valign: 'middle'
                 on_text: root.load_questions()
             Button:
-                text: 'Hľadať duplikáty'
+                text: 'Hľadať\nduplikáty'
                 background_color: (0.9, 0.6, 0.1, 1)
+                font_size: sp(15)
+                text_size: self.width - dp(16), self.height - dp(8)
+                halign: 'center'
+                valign: 'middle'
                 on_press: root.check_duplicates()
 
         ScrollView:
+            do_scroll_x: False
+            do_scroll_y: True
+            bar_width: dp(5)
             BoxLayout:
                 id: questions_list_layout
                 orientation: 'vertical'
                 size_hint_y: None
                 height: self.minimum_height
-                spacing: 5
+                spacing: dp(6)
         Button:
             text: 'Späť do Menu'
             size_hint_y: None
-            height: 50
+            height: dp(46)
+            font_size: sp(16)
             on_press: root.manager.current = 'menu'
 
 <QuestionPreviewScreen>:
     name: 'question_preview'
     BoxLayout:
         orientation: 'vertical'
-        padding: 20
-        spacing: 10
+        padding: dp(12)
+        spacing: dp(6)
         Label:
             id: prev_header
             text: 'Náhľad otázky'
-            font_size: 18
+            font_size: sp(16)
             size_hint_y: None
-            height: 30
+            height: dp(44)
+            text_size: self.width - dp(8), self.height
             halign: 'left'
-        Label:
-            id: prev_text
-            text: 'Text...'
-            font_size: 16
-            size_hint_y: None
-            height: 45
-            text_size: self.width, None
-            halign: 'left'
-        
+            valign: 'middle'
+        ScrollView:
+            id: preview_scroll
+            do_scroll_x: False
+            do_scroll_y: True
+            bar_width: dp(5)
+            GridLayout:
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(8)
+                padding: dp(4), dp(4), dp(8), dp(12)
+                Label:
+                    id: prev_text
+                    text: 'Text...'
+                    font_size: sp(20)
+                    size_hint_y: None
+                    height: self.texture_size[1] + dp(18)
+                    text_size: self.width - dp(12), None
+                    halign: 'left'
+                    valign: 'top'
+                BoxLayout:
+                    id: prev_image_container
+                    size_hint_y: None
+                    height: min(dp(360), max(dp(150), preview_scroll.height * 0.42)) if self.children else 0
+                Button:
+                    id: prev_opt_a
+                    text: 'A)'
+                    font_size: sp(18)
+                    size_hint_y: None
+                    height: max(dp(52), self.texture_size[1] + dp(20))
+                    text_size: self.width - dp(24), None
+                    padding: dp(12), dp(8)
+                    halign: 'left'
+                    valign: 'middle'
+                Button:
+                    id: prev_opt_b
+                    text: 'B)'
+                    font_size: sp(18)
+                    size_hint_y: None
+                    height: max(dp(52), self.texture_size[1] + dp(20))
+                    text_size: self.width - dp(24), None
+                    padding: dp(12), dp(8)
+                    halign: 'left'
+                    valign: 'middle'
+                Button:
+                    id: prev_opt_c
+                    text: 'C)'
+                    font_size: sp(18)
+                    size_hint_y: None
+                    height: max(dp(52), self.texture_size[1] + dp(20))
+                    text_size: self.width - dp(24), None
+                    padding: dp(12), dp(8)
+                    halign: 'left'
+                    valign: 'middle'
         BoxLayout:
-            id: prev_image_container
-            size_hint_y: 1
-
-        Button:
-            id: prev_opt_a
-            text: 'A)'
             size_hint_y: None
-            height: 45
-            text_size: self.width - 20, None
-            halign: 'left'
-        Button:
-            id: prev_opt_b
-            text: 'B)'
-            size_hint_y: None
-            height: 45
-            text_size: self.width - 20, None
-            halign: 'left'
-        Button:
-            id: prev_opt_c
-            text: 'C)'
-            size_hint_y: None
-            height: 45
-            text_size: self.width - 20, None
-            halign: 'left'
-        
-        BoxLayout:
-            size_hint_y: None
-            height: 45
-            spacing: 10
+            height: dp(44)
+            spacing: dp(8)
             Button:
                 text: 'Predchádzajúca'
+                font_size: sp(14)
                 on_press: root.prev_question()
             Button:
                 text: 'Ďalšia'
+                font_size: sp(14)
                 on_press: root.next_question()
-
         BoxLayout:
             size_hint_y: None
-            height: 45
-            spacing: 10
+            height: dp(44)
+            spacing: dp(6)
             Button:
                 text: 'Upraviť'
+                font_size: sp(14)
                 background_color: 0.2, 0.5, 0.9, 1
                 on_press: root.go_to_edit()
             Button:
-                text: 'Resetovať obtiažność'
+                text: 'Resetovať'
+                font_size: sp(14)
                 background_color: 0.9, 0.6, 0.1, 1
                 on_press: root.reset_this_question()
             Button:
-                text: 'Zmazať otázku'
+                text: 'Zmazať'
+                font_size: sp(14)
                 background_color: 0.8, 0.2, 0.2, 1
                 on_press: root.delete_this_question()
         Button:
             text: 'Späť do Prehľadu'
             size_hint_y: None
-            height: 45
+            height: dp(44)
+            font_size: sp(15)
             on_press: root.manager.current = 'view_questions'
 
 <EditQuestionScreen>:
@@ -512,153 +599,129 @@
     name: 'active_test'
     BoxLayout:
         orientation: 'vertical'
-        padding: 10
-        spacing: 5
+        padding: dp(10)
+        spacing: dp(6)
         BoxLayout:
+            orientation: 'vertical'
             size_hint_y: None
-            height: 60
-            spacing: 20
-            Label:
-                id: timer_label
-                text: 'Zostávajúci čas: 30:00'
-                font_size: 16
-                size_hint_x: None
-                width: 200
-            ScrollView:
-                do_scroll_y: False
-                BoxLayout:
-                    id: top_questions_grid
-                    orientation: 'horizontal'
-                    size_hint_x: None
-                    width: self.minimum_width
-                    spacing: 5
+            height: timer_row.height + top_questions_grid.height + dp(4)
+            BoxLayout:
+                id: timer_row
+                size_hint_y: None
+                height: dp(44)
+                spacing: dp(8)
+                Label:
+                    id: timer_label
+                    text: 'Čas: 30:00'
+                    font_size: sp(15)
+                    size_hint_x: 0.52
+                Spinner:
+                    text: app.orientation_mode
+                    values: ['Automaticky', 'Na výšku', 'Na šírku']
+                    font_size: sp(14)
+                    on_text: root.set_orientation(self.text)
+            GridLayout:
+                id: top_questions_grid
+                cols: max(1, int((self.width + dp(4)) / dp(48)))
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(4)
+                row_default_height: dp(40)
+                row_force_default: True
         BoxLayout:
-            spacing: 15
+            orientation: 'vertical'
+            spacing: dp(6)
+            Label:
+                id: q_header_label
+                text: 'Otázka č. 1 za 1 b'
+                font_size: sp(20)
+                size_hint_y: None
+                height: dp(32)
+                halign: 'left'
+                text_size: self.width, self.height
+            ScrollView:
+                id: question_scroll
+                do_scroll_x: False
+                do_scroll_y: True
+                bar_width: dp(5)
+                GridLayout:
+                    cols: 1
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: dp(8)
+                    padding: dp(2), dp(4), dp(8), dp(12)
+                    Label:
+                        id: q_category_label
+                        text: ''
+                        font_size: sp(15)
+                        size_hint_y: None
+                        height: self.texture_size[1] + dp(8)
+                        text_size: self.width - dp(8), None
+                        halign: 'left'
+                        valign: 'middle'
+                    Label:
+                        id: q_text_label
+                        text: 'Text otázky...'
+                        font_size: sp(21)
+                        size_hint_y: None
+                        height: self.texture_size[1] + dp(18)
+                        text_size: self.width - dp(8), None
+                        halign: 'left'
+                        valign: 'top'
+                    BoxLayout:
+                        id: test_image_container
+                        size_hint_y: None
+                        height: min(dp(360), max(dp(150), question_scroll.height * 0.42)) if self.children else 0
+                    Button:
+                        id: opt_a_btn
+                        text: 'A) Možnosť A'
+                        font_size: sp(18)
+                        size_hint_y: None
+                        height: max(dp(52), self.texture_size[1] + dp(20))
+                        text_size: self.width - dp(24), None
+                        padding: dp(12), dp(8)
+                        halign: 'left'
+                        valign: 'middle'
+                        on_press: root.select_answer(0)
+                    Button:
+                        id: opt_b_btn
+                        text: 'B) Možnosť B'
+                        font_size: sp(18)
+                        size_hint_y: None
+                        height: max(dp(52), self.texture_size[1] + dp(20))
+                        text_size: self.width - dp(24), None
+                        padding: dp(12), dp(8)
+                        halign: 'left'
+                        valign: 'middle'
+                        on_press: root.select_answer(1)
+                    Button:
+                        id: opt_c_btn
+                        text: 'C) Možnosť C'
+                        font_size: sp(18)
+                        size_hint_y: None
+                        height: max(dp(52), self.texture_size[1] + dp(20))
+                        text_size: self.width - dp(24), None
+                        padding: dp(12), dp(8)
+                        halign: 'left'
+                        valign: 'middle'
+                        on_press: root.select_answer(2)
             BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: 0.35
-                spacing: 2
+                size_hint_y: None
+                height: dp(48)
+                spacing: dp(8)
                 Button:
-                    id: cat_1
-                    text: 'Pravidlá cestnej premávky'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
+                    text: 'Predchádzajúca'
+                    font_size: sp(14)
+                    on_press: root.prev_question()
                 Button:
-                    id: cat_2
-                    text: 'Prednosť v jazde'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
+                    text: 'Ďalšia'
+                    font_size: sp(14)
+                    on_press: root.next_question()
                 Button:
-                    id: cat_3
-                    text: 'Dopravné značky'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-                Button:
-                    id: cat_4
-                    text: 'Križovatky'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-                Button:
-                    id: cat_5
-                    text: 'Dopravná nehoda'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-                Button:
-                    id: cat_6
-                    text: 'Teória vedenia'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-                Button:
-                    id: cat_7
-                    text: 'Doklady a čas'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-                Button:
-                    id: cat_8
-                    text: 'Podmienky prevádzky'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-                Button:
-                    id: cat_9
-                    text: 'Zásady bezpečnej jazdy'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-                Button:
-                    id: cat_10
-                    text: 'Konštrukcia vozidiel'
-                    text_size: self.width - 10, None
-                    halign: 'left'
-                    font_size: 10
-            BoxLayout:
-                orientation: 'vertical'
-                spacing: 10
-                Label:
-                    id: q_header_label
-                    text: 'Otázka č. 1 za 1 b'
-                    font_size: 18
-                    size_hint_y: None
-                    height: 30
-                    halign: 'left'
-                Label:
-                    id: q_text_label
-                    text: 'Text otázky...'
-                    font_size: 15
-                    size_hint_y: None
-                    height: 50
-                    text_size: self.width, None
-                    halign: 'left'
-                
-                BoxLayout:
-                    id: test_image_container
-                    size_hint_y: 1
-
-                Button:
-                    id: opt_a_btn
-                    text: 'A) Možnost A'
-                    size_hint_y: None
-                    height: 55
-                    text_size: self.width - 20, None
-                    halign: 'left'
-                    on_press: root.select_answer(0)
-                Button:
-                    id: opt_b_btn
-                    text: 'B) Možnost B'
-                    size_hint_y: None
-                    height: 55
-                    text_size: self.width - 20, None
-                    halign: 'left'
-                    on_press: root.select_answer(1)
-                Button:
-                    id: opt_c_btn
-                    text: 'C) Možnost C'
-                    size_hint_y: None
-                    height: 55
-                    text_size: self.width - 20, None
-                    halign: 'left'
-                    on_press: root.select_answer(2)
-                BoxLayout:
-                    size_hint_y: None
-                    height: 50
-                    spacing: 10
-                    Button:
-                        text: 'Predchádzajúca'
-                        on_press: root.prev_question()
-                    Button:
-                        text: 'Ďalšia'
-                        on_press: root.next_question()
-                    Button:
-                        text: 'Ukončenie testu'
-                        background_color: 0.1, 0.6, 0.2, 1
-                        on_press: root.finish_test()
+                    text: 'Ukončiť'
+                    font_size: sp(14)
+                    background_color: 0.1, 0.6, 0.2, 1
+                    on_press: root.finish_test()
 
 <TestSummaryScreen>:
     name: 'test_summary'

@@ -8,14 +8,27 @@ from kivy.uix.spinner import Spinner
 from kivy.uix.image import Image as CoreImageWidget
 from kivy.core.image import Image as CoreImage
 from kivy.core.clipboard import Clipboard
+from kivy.core.window import Window
 from kivy.clock import Clock
 from kivy.lang import Builder
+from kivy.metrics import dp, sp
+from kivy.properties import StringProperty
+from kivy.utils import platform
 import io
 import subprocess
 import time
+import sys
+import os
 import database
 
-Builder.load_file('quiz.kv')
+# Bezpečné načítanie quiz.kv pre PyInstaller aj čistý Python
+if getattr(sys, 'frozen', False):
+    base_path = sys._MEIPASS
+else:
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+kv_path = os.path.join(base_path, 'quiz.kv')
+Builder.load_file(kv_path)
 
 CATEGORY_POINTS_MAP = {
     "Pravidlá cestnej premávky": 3,
@@ -164,10 +177,32 @@ class AddQuestionScreen(Screen):
         self.ids.img_status_label.color = (0.7, 0.7, 0.7, 1)
 
 class ViewQuestionsScreen(Screen):
+    page_size = 40
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.search_event = None
+        self.filter_values = {}
+        self.filtered_ids = []
+        self.duplicate_rows = []
+        self.duplicate_mode = False
+        self.loaded_count = 0
+        self.total_count = 0
+        self.load_more_button = None
+
     def on_enter(self):
         self.load_questions()
 
+    def schedule_search(self):
+        if self.search_event:
+            self.search_event.cancel()
+        self.search_event = Clock.schedule_once(lambda dt: self.load_questions(), 0.3)
+
     def load_questions(self):
+        if self.search_event:
+            self.search_event.cancel()
+            self.search_event = None
+
         search_text = self.ids.search_box.text
         cat_text = self.ids.cat_filter.text
         status_text = self.ids.status_filter.text
@@ -176,57 +211,132 @@ class ViewQuestionsScreen(Screen):
         status_map = {"Všetky statusy": None, "❓ Nepoznám": 0, "🔴 Neviem": 1, "🟡 Neistý": 2, "🟢 Viem": 3}
         status_val = status_map.get(status_text)
 
-        rows = database.get_questions(
-            category=cat_text, 
-            search_query=search_text, 
-            status_filter=status_val, 
-            sort_by=sort_text
-        )
-        
-        total_q, cat_counts = database.get_question_counts()
-        current_cat_count = cat_counts.get(cat_text, total_q) if cat_text != "Všetky kategórie" else total_q
-        self.ids.count_label.text = f"Zobrazené: {len(rows)} | V kategórii: {current_cat_count} | Celkovo v DB: {total_q}"
+        self.duplicate_mode = False
+        self.filter_values = {
+            "category": cat_text,
+            "search_query": search_text,
+            "status_filter": status_val,
+            "sort_by": sort_text,
+        }
+        self.filtered_ids = database.get_question_ids(**self.filter_values)
+        self.total_count = len(self.filtered_ids)
+        self.loaded_count = 0
+        self.duplicate_rows = []
+        self._render_question_page()
 
+    def _clear_list(self):
         container = self.ids.questions_list_layout
         container.clear_widgets()
-        
-        if not rows:
-            lbl = Label(text="Žiadne otázky sa nenašli.", size_hint_y=None, height=40, color=(0.7, 0.7, 0.7, 1))
-            container.add_widget(lbl)
+        self.load_more_button = None
+
+    def _add_list_button(self, text, on_press, background_color=(0.22, 0.22, 0.22, 1)):
+        btn = Button(
+            text=text,
+            size_hint_y=None,
+            height=dp(72),
+            font_size=sp(16),
+            text_size=(Window.width - dp(56), None),
+            padding=(dp(12), dp(10)),
+            halign="left",
+            valign="middle",
+            background_color=background_color,
+        )
+        btn.bind(size=lambda widget, size: setattr(widget, "text_size", (size[0] - dp(24), None)))
+        btn.bind(texture_size=lambda widget, size: setattr(widget, "height", max(dp(64), size[1] + dp(20))))
+        btn.bind(on_press=on_press)
+        self.ids.questions_list_layout.add_widget(btn)
+
+    def _render_question_page(self):
+        self._clear_list()
+        status_text_map = {0: "❓ Nepoznám", 1: "🔴 Neviem", 2: "🟡 Neistý", 3: "🟢 Viem"}
+        if not self.total_count:
+            self.ids.count_label.text = "Nenašli sa žiadne otázky."
+            self.ids.questions_list_layout.add_widget(Label(
+                text="Žiadne otázky sa nenašli.",
+                size_hint_y=None,
+                height=dp(48),
+                font_size=sp(16),
+                color=(0.7, 0.7, 0.7, 1),
+            ))
             return
 
-        status_text_map = {0: "❓ Nepoznám", 1: "🔴 Neviem", 2: "🟡 Neistý", 3: "🟢 Viem"}
-        app_screen = self.manager.get_screen('question_preview')
-        app_screen.current_filtered_ids = [q[0] for q in rows]
-
+        rows = database.get_questions(
+            **self.filter_values,
+            limit=self.page_size,
+            offset=self.loaded_count,
+        )
+        self.loaded_count += len(rows)
         for q in rows:
             q_id, cat, q_text, points, learning_status, difficulty = q
             status_str = status_text_map.get(learning_status, "❓ Nepoznám")
-            display_text = f"[{status_str}] [Diff: {difficulty}/5] [{cat}] ({points}b): {q_text}"
-            
-            btn = Button(text=display_text, size_hint_y=None, height=50, halign='left', valign='middle')
-            btn.bind(size=btn.setter('text_size'))
-            btn.bind(on_press=lambda instance, qid=q_id: self.open_question_preview(qid))
-            container.add_widget(btn)
+            display_text = f"{status_str}  |  Obtiažnosť {difficulty}/5  |  {cat}  |  {points} b\n{q_text}"
+            self._add_list_button(
+                display_text,
+                lambda instance, qid=q_id: self.open_question_preview(qid),
+            )
+
+        self.manager.get_screen('question_preview').current_filtered_ids = self.filtered_ids
+        self.ids.count_label.text = f"Zobrazené: {self.loaded_count} / {self.total_count}"
+        if self.loaded_count < self.total_count:
+            self._add_load_more_button(self.total_count - self.loaded_count)
 
     def check_duplicates(self):
-        dups = database.find_duplicate_questions()
-        container = self.ids.questions_list_layout
-        container.clear_widgets()
-        
-        if not dups:
-            lbl = Label(text="Nenašli sa žiadne duplicitné otázky.", size_hint_y=None, height=40, color=(0, 1, 0, 1))
-            container.add_widget(lbl)
+        if self.search_event:
+            self.search_event.cancel()
+            self.search_event = None
+        self.duplicate_rows = database.find_duplicate_questions()
+        self.duplicate_mode = True
+        self.total_count = len(self.duplicate_rows)
+        self.loaded_count = 0
+        self.filtered_ids = list(dict.fromkeys(
+            q_id for duplicate in self.duplicate_rows for q_id in (duplicate[0], duplicate[3])
+        ))
+        self._render_duplicate_page()
+
+    def _render_duplicate_page(self):
+        self._clear_list()
+        self.manager.get_screen('question_preview').current_filtered_ids = self.filtered_ids
+        if not self.total_count:
             self.ids.count_label.text = "Kontrola duplikátov: Všetko je čisté!"
+            self.ids.questions_list_layout.add_widget(Label(
+                text="Nenašli sa žiadne duplicitné otázky.",
+                size_hint_y=None,
+                height=dp(48),
+                font_size=sp(16),
+                color=(0, 1, 0, 1),
+            ))
             return
-            
-        self.ids.count_label.text = f"Nájdených potenciálnych duplikátov: {len(dups)}"
-        for d in dups:
+
+        page = self.duplicate_rows[self.loaded_count:self.loaded_count + self.page_size]
+        self.loaded_count += len(page)
+        for d in page:
             id1, cat1, text1, id2, cat2, text2 = d
-            display_text = f"DUPLIKÁT: [ID {id1}] vs [ID {id2}] -> {text1[:50]}..."
-            btn = Button(text=display_text, size_hint_y=None, height=50, background_color=(0.9, 0.4, 0.2, 1))
-            btn.bind(on_press=lambda instance, qid=id1: self.open_question_preview(qid))
-            container.add_widget(btn)
+            display_text = f"DUPLIKÁT: ID {id1} ({cat1}) / ID {id2} ({cat2})\n{text1}"
+            self._add_list_button(
+                display_text,
+                lambda instance, qid=id1: self.open_question_preview(qid),
+                background_color=(0.65, 0.28, 0.16, 1),
+            )
+
+        self.ids.count_label.text = f"Duplikáty: {self.loaded_count} / {self.total_count}"
+        if self.loaded_count < self.total_count:
+            self._add_load_more_button(self.total_count - self.loaded_count)
+
+    def _add_load_more_button(self, remaining):
+        self.load_more_button = Button(
+            text=f"Načítať ďalšie ({remaining})",
+            size_hint_y=None,
+            height=dp(52),
+            font_size=sp(16),
+        )
+        self.load_more_button.bind(on_press=self.load_more)
+        self.ids.questions_list_layout.add_widget(self.load_more_button)
+
+    def load_more(self, *_args):
+        if self.duplicate_mode:
+            self._render_duplicate_page()
+        else:
+            self._render_question_page()
 
     def open_question_preview(self, q_id):
         preview_screen = self.manager.get_screen('question_preview')
@@ -247,7 +357,8 @@ class QuestionPreviewScreen(Screen):
         _, cat, text, img_path, img_blob, opt_a, opt_b, opt_c, correct_idx, points, learning_status, difficulty = row
         self.current_category_name = cat
         
-        self.ids.prev_header.text = f"[{cat}] ({points}b) | Diff: {difficulty}/5"
+        status_text = {0: "Nepoznám", 1: "Neviem", 2: "Neistý", 3: "Viem"}.get(learning_status, "Nepoznám")
+        self.ids.prev_header.text = f"{cat}  |  {points} b  |  Obtiažnosť {difficulty}/5  |  {status_text}"
         self.ids.prev_text.text = text
         
         btn_map = {0: self.ids.prev_opt_a, 1: self.ids.prev_opt_b, 2: self.ids.prev_opt_c}
@@ -265,6 +376,7 @@ class QuestionPreviewScreen(Screen):
         if img_blob:
             img_w = blob_to_kivy_image(img_blob)
             if img_w:
+                img_w.size_hint = (1, 1)
                 container.add_widget(img_w)
 
     def next_question(self):
@@ -447,7 +559,7 @@ class ActiveTestScreen(Screen):
             self.time_left -= 1
             minutes = self.time_left // 60
             seconds = self.time_left % 60
-            self.ids.timer_label.text = f"Zostávajúci čas: {minutes:02d}:{seconds:02d}"
+            self.ids.timer_label.text = f"Čas: {minutes:02d}:{seconds:02d}"
         else:
             self.timer_event.cancel()
             self.finish_test()
@@ -459,18 +571,20 @@ class ActiveTestScreen(Screen):
         for i in range(len(self.questions)):
             btn = Button(
                 text=str(i + 1),
-                size_hint_x=None,
-                width=35,
-                background_color=(0.7, 0.7, 0.7, 1)
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(15),
             )
             btn.bind(on_press=lambda instance, idx=i: self.jump_to_question(idx))
             grid.add_widget(btn)
+        self.update_top_grid_colors()
 
     def update_top_grid_colors(self):
         grid = self.ids.top_questions_grid
-        children_list = list(grid.children[::-1])
-        for i, btn in enumerate(children_list):
-            if i in self.user_answers:
+        for i, btn in enumerate(reversed(grid.children)):
+            if i == self.current_index:
+                btn.background_color = (0.2, 0.5, 0.9, 1)
+            elif i in self.user_answers:
                 btn.background_color = (0.2, 0.7, 0.3, 1)
             else:
                 btn.background_color = (0.7, 0.7, 0.7, 1)
@@ -487,11 +601,13 @@ class ActiveTestScreen(Screen):
         q_id, cat, q_text, img_path, img_blob, opt_a, opt_b, opt_c, correct_answer, points, learning_status, difficulty = q
         
         self.ids.q_header_label.text = f"Otázka č. {self.current_index + 1} za {points} b"
+        self.ids.q_category_label.text = cat
         self.ids.q_text_label.text = q_text
         
         self.ids.opt_a_btn.text = f"A)  {opt_a}"
         self.ids.opt_b_btn.text = f"B)  {opt_b}"
         self.ids.opt_c_btn.text = f"C)  {opt_c}"
+        self.update_top_grid_colors()
         
         self.reset_option_colors()
         selected = self.user_answers.get(self.current_index)
@@ -507,9 +623,11 @@ class ActiveTestScreen(Screen):
         if img_blob:
             img_w = blob_to_kivy_image(img_blob)
             if img_w:
+                img_w.size_hint = (1, 1)
                 img_container.add_widget(img_w)
 
-        self.update_categories_sidebar(cat)
+    def set_orientation(self, mode):
+        App.get_running_app().set_orientation(mode)
 
     def select_answer(self, option_index):
         self.user_answers[self.current_index] = option_index
@@ -521,26 +639,6 @@ class ActiveTestScreen(Screen):
         self.ids.opt_a_btn.background_color = default_color
         self.ids.opt_b_btn.background_color = default_color
         self.ids.opt_c_btn.background_color = default_color
-
-    def update_categories_sidebar(self, active_category):
-        categories_map = {
-            self.ids.cat_1: "Pravidlá cestnej premávky",
-            self.ids.cat_2: "Uplatňovanie pravidiel prednosti v jazde a rýchlostné obmedzenia",
-            self.ids.cat_3: "Dopravné značky a dopravné zariadenia",
-            self.ids.cat_4: "Dopravné situácie na križovatkách",
-            self.ids.cat_5: "Všeobecné pravidlá správania sa v prípade dopravnej nehody",
-            self.ids.cat_6: "Teória vedenia vozidla",
-            self.ids.cat_7: "Predpisy týkajúce sa dokladov požadovaných v prípade používania vozidla a organizácia času v doprave",
-            self.ids.cat_8: "Podmienky prevádzky vozidiel v premávke na pozemnych komunikáciách",
-            self.ids.cat_9: "Zásady bezpečnej jazdy",
-            self.ids.cat_10: "Konštrukcia vozidiel a ich údržba"
-        }
-        
-        for btn, cat_name in categories_map.items():
-            if cat_name == active_category:
-                btn.background_color = (0.1, 0.4, 0.8, 1)
-            else:
-                btn.background_color = (0.2, 0.2, 0.2, 1)
 
     def next_question(self):
         if self.current_index < len(self.questions) - 1:
@@ -711,9 +809,30 @@ class WindowManager(ScreenManager):
     pass
 
 class DrivingTestApp(App):
+    orientation_mode = StringProperty("Automaticky")
+
     def build(self):
         database.init_db()
         return WindowManager()
+
+    def on_start(self):
+        self.set_orientation(self.orientation_mode)
+
+    def set_orientation(self, mode):
+        orientation_values = {
+            "Automaticky": 10,
+            "Na výšku": 1,
+            "Na šírku": 0,
+        }
+        if mode not in orientation_values:
+            raise ValueError(f"Nepodporovaná orientácia: {mode}")
+
+        self.orientation_mode = mode
+        if platform == "android":
+            from jnius import autoclass
+
+            activity = autoclass("org.kivy.android.PythonActivity").mActivity
+            activity.setRequestedOrientation(orientation_values[mode])
 
 if __name__ == '__main__':
     DrivingTestApp().run()
