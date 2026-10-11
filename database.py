@@ -8,8 +8,13 @@ import shutil
 def get_connection():
     if getattr(sys, 'frozen', False):
         # Desktop verzia (PyInstaller)
-        base_path = os.path.dirname(sys.executable)
-        target_db = os.path.join(base_path, 'questions.db')
+        from kivy.app import App
+        app = App.get_running_app()
+        if app is None:
+            raise RuntimeError("Databáza aplikácie vyžaduje spustenú Kivy aplikáciu.")
+
+        os.makedirs(app.user_data_dir, exist_ok=True)
+        target_db = os.path.join(app.user_data_dir, 'questions.db')
         if not os.path.exists(target_db):
             source_db = os.path.join(sys._MEIPASS, 'questions.db')
             if os.path.exists(source_db):
