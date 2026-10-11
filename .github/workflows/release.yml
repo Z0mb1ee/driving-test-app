@@ -19,6 +19,8 @@ jobs:
           python-version: "3.11"
       - name: Install packaging dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libmtdev1
           python -m pip install --upgrade pip
           python -m pip install kivy==2.3.1 pyinstaller
       - name: Build single-file Linux executable
