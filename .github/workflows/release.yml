@@ -25,18 +25,18 @@ jobs:
           sudo apt-get install -y \
             libmtdev1 \
             libgl1-mesa-glx \
-            libgles2-mesa \
-            libxkbcommon0 \
-            libxkbcommon-x11-0 \
-            libxcb-icccm4 \
-            libxcb-image0 \
-            libxcb-keysyms1 \
-            libxcb-randr0 \
-            libxcb-render-util0 \
-            libxcb-xfixes0 \
-            libxcb-xinerama0 \
-            libxcb-xkb1 \
-            xvfb
+            libglib2.0-0 \
+            libsm6 \
+            libxext6 \
+            libxrender-dev \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libportmidi-dev \
+            libswscale-dev \
+            libavformat-dev \
+            libavcodec-dev
           python -m pip install --upgrade pip
           python -m pip install kivy==2.3.1 pyinstaller
 
